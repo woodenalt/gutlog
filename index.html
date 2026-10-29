@@ -1,4 +1,957 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f766e"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="GutLog"><meta name="description" content="Private offline bowel and food journal"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-180.png"><link rel="stylesheet" href="styles.css"><title>GutLog</title></head><body><header><div class="brand"><div class="mark">G</div><div><strong>GutLog</strong><small>Private digestive journal</small></div></div><span class="status" id="status">On-device</span></header><main><section id="home" class="page active"><div class="hero"><h1>Your health journal</h1><p>Private, offline-capable records stored on this device.</p><div class="quick"><button data-go="stool" class="primary">+ Stool entry</button><button data-go="food" class="secondary">+ Food entry</button></div></div><div class="stats"><div><strong id="stoolCount">0</strong><small>Stool entries</small></div><div><strong id="foodCount">0</strong><small>Food entries</small></div></div><div class="panel"><h2>Recent entries</h2><div id="recent" class="entries"></div></div><div class="notice">Your records stay in this browser's local storage unless you explicitly export them. Back up regularly; deleting website data or the app can erase records.</div></section>
-<section id="stool" class="page"><div class="pagehead"><h1>Stool log</h1><p>Record a bowel movement</p></div><form id="stoolForm"><input type="hidden" id="stoolId"><div class="panel"><label for="stoolAt">Date and time</label><input id="stoolAt" type="datetime-local" required><label>Bristol stool type</label><div class="typegrid" id="bristolButtons"></div><p class="hint" id="bristolHint"></p><label for="ease">Ease of passing</label><select id="ease"><option>Very easy</option><option>Easy</option><option selected>Normal</option><option>Hard</option><option>Very hard</option></select><label>Color</label><div class="colors" id="colorButtons"></div><div id="colorAlert" class="warning hidden" role="alert">Red stool can indicate blood; black tarry stool may also indicate bleeding. Foods and medicines can change color. Seek medical advice for unexplained changes; urgent care for heavy bleeding, faintness, or black tarry stool.</div><label for="blood">Blood present</label><select id="blood"><option value="no">No</option><option value="yes">Yes</option></select><div class="warning hidden" id="bloodAlert">Visible blood deserves medical assessment. Heavy bleeding or associated weakness or fainting needs urgent care.</div><label for="duration">Duration (minutes)</label><input id="duration" type="number" min="0" max="1440" step="1" value="0" required><label for="stoolNotes">Notes</label><textarea id="stoolNotes" rows="3" placeholder="Optional observations"></textarea></div><button type="submit" class="primary save">Save stool entry</button><button type="button" class="ghost hidden" id="stoolCancel">Cancel edit</button></form><div class="panel"><h2>Stool history</h2><div id="stoolEntries" class="entries"></div></div></section>
-<section id="food" class="page"><div class="pagehead"><h1>Food log</h1><p>Record meals and supplements</p></div><form id="foodForm"><input type="hidden" id="foodId"><div class="panel"><label for="foodAt">Date and time</label><input id="foodAt" type="datetime-local" required><label for="meal">Meal type</label><select id="meal"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select><label for="foodNotes">Notes</label><textarea id="foodNotes" rows="2" placeholder="Portions, ingredients, symptoms, etc."></textarea><label for="foodSearch">Choose foods (multiple allowed)</label><input id="foodSearch" type="search" placeholder="Search catalog..."><div class="selected" id="selectedFoods"></div><div id="foodCatalog"></div><label for="customFood">Add custom food</label><div class="inline"><input id="customFood" type="text" maxlength="100" placeholder="Type a food or ingredient"><button type="button" id="addCustom" class="secondary">Add</button></div></div><button class="primary save" type="submit">Save food entry</button><button class="ghost hidden" type="button" id="foodCancel">Cancel edit</button></form><div class="panel"><h2>Food history</h2><div id="foodEntries" class="entries"></div></div></section>
-<section id="data" class="page"><div class="pagehead"><h1>Data & backup</h1><p>Your records belong to you</p></div><div class="panel"><h2>Export</h2><p class="muted">Exports may contain sensitive health information. Save them only to locations you trust.</p><button id="jsonExport" class="primary wide">Export complete JSON backup</button><button id="stoolCSV" class="secondary wide">Export stool CSV</button><button id="foodCSV" class="secondary wide">Export food CSV</button></div><div class="panel"><h2>Restore from JSON</h2><p class="muted">Import a GutLog JSON backup. You can merge records or replace all existing records.</p><input type="file" accept=".json,application/json" id="importFile"><div class="inline"><button id="mergeImport" class="secondary" type="button">Merge backup</button><button id="replaceImport" class="danger" type="button">Replace all</button></div></div><div class="panel"><h2>Local data controls</h2><button id="clearAll" class="danger wide">Delete all local records</button><p class="hint">Deleting data cannot be undone without a backup. No account or remote sync is included.</p></div><div class="panel"><h2>Privacy and reliability</h2><p class="muted">IndexedDB stores entries locally; offline app files are cached by a service worker. There is no analytics, ad SDK, account, or network submission of health entries. This is not encryption: anyone with access to an unlocked device/browser profile may be able to read the records. iOS can erase site data, so export backups regularly. Hosting serves only app code, not your personal records.</p></div></section></main><nav aria-label="Main navigation"><button class="nav active" data-go="home">⌂<small>Home</small></button><button class="nav" data-go="stool">◉<small>Stool</small></button><button class="nav" data-go="food">▤<small>Food</small></button><button class="nav" data-go="data">⇩<small>Backup</small></button></nav><div id="toast" role="status" aria-live="polite"></div><script src="app.js" defer></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GutLog">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f2f3f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>GutLog</title>
+<style>
+:root{
+  --bg:#f2f3f7; --card:#ffffff; --fg:#14161a; --muted:#69707d; --line:#dfe3ea; --soft:#eceff5;
+  --accent:#0a7cff; --accent-fg:#ffffff; --danger:#d0302a; --ok:#18884a;
+  --warn-bg:#fff3dc; --warn-fg:#7a4a00; --warn-line:#f0c36d;
+  --nav-h:54px; --bar-h:70px; --hdr-h:56px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000000; --card:#1c1c1e; --fg:#f2f2f7; --muted:#9a9aa1; --line:#3a3a3c; --soft:#2c2c2e;
+    --accent:#3d9bff; --accent-fg:#001a33; --danger:#ff6961; --ok:#4cd48a;
+    --warn-bg:#3a2a08; --warn-fg:#ffd48a; --warn-line:#7a5a1a;
+  }
+}
+[hidden]{display:none !important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:22px;-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--fg); line-height:1.3;
+  font-family:-apple-system,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 1rem);
+}
+body.has-bar{padding-bottom:calc(var(--nav-h) + var(--bar-h) + env(safe-area-inset-bottom) + 1rem)}
+button,select{font:inherit;color:inherit;touch-action:manipulation;cursor:pointer}
+
+/* ---------- header ---------- */
+header{
+  position:sticky; top:0; z-index:30; background:var(--bg);
+  padding:calc(8px + env(safe-area-inset-top)) 14px 8px;
+  display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line);
+}
+.logo{
+  width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+  background:linear-gradient(160deg,#2e94ff,#0862d6);color:#fff;font-weight:800;font-size:21px;line-height:1
+}
+header h1{margin:0;font-size:19px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;flex:none;border:1.5px solid var(--ok);border-radius:999px;
+  padding:3px 10px 3px 8px;font-size:12.5px;font-weight:700;color:var(--ok);letter-spacing:.01em
+}
+
+main{max-width:640px;margin:0 auto;padding:12px 14px 4px}
+
+/* ---------- cards & fields ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 13px;margin:0 0 12px}
+.card>h2{
+  margin:0 0 9px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  display:flex;justify-content:space-between;align-items:center;gap:8px
+}
+.f{margin:0 0 14px}
+.f:last-child{margin-bottom:0}
+.f>.label,.bgroup>.label{font-size:13px;font-weight:700;color:var(--muted);margin:0 0 6px}
+.mt{margin-top:8px}
+.muted{color:var(--muted);font-size:.8rem}
+input[type=text],input[type=search],input[type=number],input[type=datetime-local],textarea,select{
+  width:100%; min-width:0; font:inherit; font-size:1rem; color:var(--fg); background:var(--card);
+  border:2px solid var(--line); border-radius:12px; padding:.5rem .7rem; min-height:2.9rem;
+  -webkit-appearance:none; appearance:none;
+}
+select{background-image:none;padding-right:.7rem}
+textarea{min-height:5.5rem;resize:vertical}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+.row{display:flex;gap:8px;align-items:stretch}
+.row>input,.row>select{flex:1}
+
+.btn{
+  min-height:2.9rem; padding:0 1rem; border-radius:12px; border:2px solid var(--line);
+  background:var(--card); font-weight:600; font-size:.95rem;
+}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);width:100%;min-height:3.2rem;font-size:1.05rem}
+.btn.danger{color:var(--danger);border-color:var(--danger);width:100%}
+.btn.small{min-height:2.9rem;padding:0 .9rem}
+.btn:disabled{opacity:.55}
+
+/* chips, segmented controls, grids */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;min-height:2.6rem;padding:0 .9rem;
+  border-radius:999px;border:2px solid var(--line);background:var(--card);font-size:.92rem
+}
+.chip.small{min-height:2.2rem;padding:0 .7rem;font-size:.85rem}
+.chips.wrap .chip{border-radius:14px;text-align:left;white-space:normal;line-height:1.2;padding:.45rem .85rem;font-size:.88rem}
+.chip.custom{border-style:dashed}
+.chip.on,.cbtn.on,.bgrid button.on,.seg button.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.dot{display:inline-block;width:.85rem;height:.85rem;border-radius:50%;border:1px solid rgba(128,128,128,.6);flex:none}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--soft);border-radius:13px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;border-radius:10px;min-height:2.9rem;font-size:.9rem;font-weight:600;padding:2px 4px;line-height:1.15}
+.seg.dense button{font-size:.8rem}
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.cbtn{
+  display:flex;align-items:center;justify-content:center;gap:7px;min-height:2.9rem;border:2px solid var(--line);
+  border-radius:12px;background:var(--card);font-size:.92rem;text-transform:capitalize
+}
+.bsum{font-size:15px;font-weight:800;color:var(--accent);letter-spacing:0;text-transform:none}
+.bgroup{margin:0 0 12px}
+.bgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.bgrid button{min-height:3.1rem;border:2px solid var(--line);border-radius:11px;background:var(--card);font-size:1.15rem;font-weight:700;padding:0}
+.bscale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin:3px 2px 0}
+.bcap{font-size:.78rem;color:var(--muted);min-height:2.6em;margin-top:5px;line-height:1.25}
+.stepper{display:flex;gap:8px;align-items:stretch}
+.stepper input{text-align:center;flex:1}
+.stepper .btn{min-width:3.2rem;font-size:1.4rem;padding:0}
+.unit{align-self:center;color:var(--muted);font-size:.85rem}
+
+/* notable extras */
+.xrow{border:2px solid var(--line);border-radius:13px;margin:0 0 8px;overflow:hidden;background:var(--card)}
+.xrow:last-child{margin-bottom:0}
+.xrow.on{border-color:var(--accent)}
+.xhead{display:flex;width:100%;align-items:center;gap:11px;padding:7px 11px;min-height:3.1rem;border:0;background:none;text-align:left;font-size:1rem}
+.xbox{width:1.4rem;height:1.4rem;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;flex:none;font-size:.95rem;font-weight:800;line-height:1}
+.xrow.on .xbox{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.xhead small{display:block;color:var(--muted);font-size:.72rem;font-weight:400}
+.xbody{padding:0 11px 11px}
+.xbody .row{margin-top:8px}
+
+.warn{
+  background:var(--warn-bg);color:var(--warn-fg);border:2px solid var(--warn-line);
+  border-radius:14px;padding:10px 13px;margin:0 0 12px;font-size:.82rem
+}
+.warn p{margin:4px 0 0}
+.banner{
+  display:flex;justify-content:space-between;gap:10px;align-items:center;
+  background:var(--card);border:2px solid var(--accent);border-radius:14px;padding:8px 12px;margin:0 0 12px;font-size:.85rem
+}
+
+/* meal picker */
+.summary{
+  position:sticky;top:var(--hdr-h);z-index:8;background:var(--card);border:2px solid var(--line);
+  border-radius:14px;padding:8px 10px;margin:0 0 12px;box-shadow:0 4px 10px -6px rgba(0,0,0,.35)
+}
+.summary .label{font-weight:700;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+details{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 0 8px;padding:0 12px}
+details[open]{padding-bottom:12px}
+summary{font-weight:700;min-height:3rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;font-size:1rem}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"▾";color:var(--muted)}
+details[open] summary::after{content:"▴"}
+.badge{background:var(--accent);color:var(--accent-fg);border-radius:999px;padding:0 8px;font-size:.75rem;margin-left:8px}
+.addrow{margin-top:10px}
+
+/* history */
+.day{font-weight:700;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin:16px 2px 7px;display:flex;justify-content:space-between;gap:8px}
+.day span:last-child{text-transform:none;font-weight:600;letter-spacing:0}
+.item{
+  display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:9px 12px;margin:0 0 7px;font-size:.92rem
+}
+.item .top{display:flex;gap:9px;align-items:baseline;margin-bottom:2px}
+.item .time{font-weight:800}
+.item .tag{font-size:.72rem;padding:0 8px;border-radius:999px;background:var(--soft);font-weight:700}
+.item .tag.stool{background:var(--accent);color:var(--accent-fg)}
+.item .note{color:var(--muted);font-size:.8rem;margin-top:3px;white-space:pre-wrap;word-break:break-word}
+.flags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.flags{align-items:flex-start}
+.fl{font-size:.7rem;padding:1px 8px;border-radius:999px;background:var(--soft);font-weight:600;border:1px solid transparent}
+.fl.warn{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line)}
+.kv{display:flex;justify-content:space-between;gap:8px;font-size:.92rem;padding:3px 0}
+.food-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0}
+.card .btn.block{width:100%;margin-top:8px}
+
+/* bottom chrome */
+.bar{
+  position:fixed;left:0;right:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));z-index:25;
+  padding:8px 14px;background:var(--bg);border-top:1px solid var(--line)
+}
+.bar .btn{display:block;max-width:640px;margin:0 auto}
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom)
+}
+nav button{
+  border:0;background:none;height:var(--nav-h);font-size:11px;font-weight:600;color:var(--muted);position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px
+}
+nav button i{font-style:normal;font-size:21px;line-height:1}
+nav button.on{color:var(--accent);font-weight:800}
+.dotb{position:absolute;top:7px;left:calc(50% + 10px);width:9px;height:9px;border-radius:50%;background:var(--danger);border:2px solid var(--card)}
+#toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + var(--bar-h) + env(safe-area-inset-bottom) + 10px);z-index:40;
+  background:#222;color:#fff;border-radius:999px;padding:9px 18px;font-size:.85rem;max-width:90%;text-align:center
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true">G</div>
+  <h1 id="title">GutLog</h1>
+  <span class="pill" title="Everything stays on this phone"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>On-Device</span>
+</header>
+<main id="app"></main>
+<div class="bar" id="bar" hidden></div>
+<nav id="tabs"></nav>
+<div id="toast" hidden></div>
+
+<script>
+"use strict";
+
+/* ======================= Config ======================= */
+const FOODS = {
+  "Fruits": ["apple","banana","orange","pear","grapes","strawberry","blueberry","kiwi","mango","pineapple","watermelon","peach","avocado","lemon","cherries","melon"],
+  "Vegetables": ["broccoli","carrot","tomato","cucumber","spinach","lettuce","cabbage","potato","sweet potato","onion","garlic","bell pepper","zucchini","beet","corn","mushroom"],
+  "Grains": ["bread","white bread","whole-grain bread","rice","brown rice","pasta","oatmeal","cereal","croissant","bagel","crackers","quinoa","buckwheat"],
+  "Dairy": ["milk","yogurt","cheese","cottage cheese","butter","kefir","ice cream","cream"],
+  "Meat & fish": ["chicken","beef","pork","turkey","ham","sausage","bacon","fish","salmon","tuna","shrimp","eggs"],
+  "Legumes": ["beans","lentils","chickpeas","peas","tofu","soy milk"],
+  "Nuts": ["almonds","walnuts","peanuts","peanut butter","cashews","seeds"],
+  "Sweets": ["chocolate","candy","cookies","cake","pastry","honey","jam","dessert"],
+  "Drinks": ["coffee","tea","soda","juice","smoothie","beer","wine","cocktail","energy drink"],
+  "Fast food": ["burger","pizza","fries","hot dog","sandwich","taco","fried chicken","nuggets","kebab","sushi"],
+  "Sports nutrition": ["whey protein","casein protein","plant protein","mass gainer","BCAA / amino acids","creatine","pre-workout","protein bar","isotonic / electrolytes","energy gel"],
+  "Supplements": ["probiotics","prebiotics / fiber (psyllium, inulin)","omega-3","multivitamins","magnesium","vitamin D","collagen","digestive enzymes"],
+  "Other": []
+};
+const CATS = Object.keys(FOODS);
+const BRISTOL = [
+  {n:1,d:"Separate hard lumps"},
+  {n:2,d:"Lumpy, sausage-like"},
+  {n:3,d:"Sausage with cracks"},
+  {n:4,d:"Smooth, soft sausage"},
+  {n:5,d:"Soft blobs, clear edges"},
+  {n:6,d:"Mushy, ragged edges"},
+  {n:7,d:"Watery, no solid pieces"}
+];
+const EASE = ["Very easy","Easy","Normal","Hard","Very hard"];
+const COLORS = [
+  {k:"brown",c:"#7a4b2a"},{k:"yellow",c:"#e3c11f"},{k:"green",c:"#3f8f3f"},
+  {k:"black",c:"#111111"},{k:"red",c:"#d62828"},{k:"grey",c:"#9aa0a6"}
+];
+const URGENCY = [{v:"normal",l:"Normal"},{v:"urgent",l:"Sudden / urgent"}];
+const COMPLETION = [{v:"complete",l:"Complete"},{v:"incomplete",l:"Incomplete"}];
+const TAGS = [
+  {v:"hard_start_soft_finish", l:"Hard start, soft finish"},
+  {v:"segmented_mixed", l:"Segmented / mixed consistency"}
+];
+const BLOOD_KINDS = [{v:"bright_red",l:"Bright red"},{v:"dark",l:"Dark"},{v:"tarry",l:"Tarry"}];
+const UNDIGESTED = [{v:"corn",l:"Corn"},{v:"seeds",l:"Seeds"},{v:"leafy_greens",l:"Leafy greens"},{v:"other",l:"Other"}];
+const CONTEXTS = [{v:"high_stress",l:"High stress"},{v:"travel",l:"Travel"},{v:"new_food",l:"New food"},{v:"other",l:"Other"}];
+const MEALS = ["Breakfast","Lunch","Dinner","Snack"];
+const DURATION_PRESETS = [2,5,10,15,20];
+
+const MSG_RED = "Red color or visible blood can have many causes. If it keeps happening, or comes with pain, dizziness or heavy bleeding, contact a doctor.";
+const MSG_BLACK = "Black or tarry stool can come from iron, bismuth or dark foods, but it can also signal bleeding higher up. If it is sticky and tarry, repeats, or comes with dizziness or pain, contact a doctor promptly.";
+
+/* ======================= Helpers ======================= */
+const pad = n => String(n).padStart(2,"0");
+function localISO(d){
+  const off = -d.getTimezoneOffset(), s = off >= 0 ? "+" : "-", a = Math.abs(off);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00${s}${pad(Math.floor(a/60))}:${pad(a%60)}`;
+}
+const nowInput = () => localISO(new Date()).slice(0,16);
+function tsFromInput(v, original){
+  if (original && v === original.slice(0,16)) return original;
+  const d = new Date(v);
+  return isNaN(d) ? localISO(new Date()) : localISO(d);
+}
+function uuid(){
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = Math.random()*16|0; return (c === "x" ? r : (r&3|8)).toString(16);
+  });
+}
+function guessMeal(){
+  const hr = new Date().getHours();
+  if (hr >= 5 && hr < 11) return "Breakfast";
+  if (hr >= 11 && hr < 15) return "Lunch";
+  if (hr >= 17 && hr < 22) return "Dinner";
+  return "Snack";
+}
+function h(tag, props, ...kids){
+  const el = document.createElement(tag);
+  for (const [k,v] of Object.entries(props || {})){
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, "");
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()){
+    if (kid == null || kid === false) continue;
+    el.append(kid.nodeType ? kid : document.createTextNode(kid));
+  }
+  return el;
+}
+const card = (title, ...kids) => h("section",{class:"card"}, title ? h("h2",{}, title) : null, ...kids);
+const field = (label, ...kids) => h("div",{class:"f"}, label ? h("div",{class:"label"}, label) : null, ...kids);
+const uniqSorted = a => [...new Set(a)].sort((x,y) => x - y);
+const arrEq = (a,b) => a.length === b.length && a.every((v,i) => v === b[i]);
+const labelOf = (list, v) => { const o = list.find(x => x.v === v); return o ? o.l : v; };
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2200);
+}
+
+/* Generic chip / segmented / grid control.
+   multi: get() returns an array; otherwise a single value. */
+function chips(options, get, set, o = {}){
+  const kind = o.kind || "chip", multi = !!o.multi;
+  const opts = options.map(x => typeof x === "object" ? x : {v:x, l:x});
+  const g = h("div",{class: (kind === "seg" ? "seg" : kind === "grid" ? "cgrid" : "chips") + (o.cls ? " " + o.cls : "")});
+  const isOn = v => multi ? get().includes(v) : get() === v;
+  const paint = () => [...g.children].forEach((b,i) => b.classList.toggle("on", isOn(opts[i].v)));
+  opts.forEach(x => {
+    g.append(h("button",{type:"button", class: kind === "seg" ? "" : kind === "grid" ? "cbtn" : "chip", onclick:() => {
+      if (multi){ const a = get().slice(), k = a.indexOf(x.v); if (k >= 0) a.splice(k,1); else a.push(x.v); set(a); }
+      else set(x.v);
+      paint(); if (o.onChange) o.onChange(x.v);
+    }}, x.dot ? h("i",{class:"dot", style:"background:" + x.dot}) : null, x.l));
+  });
+  g.repaint = paint; paint();
+  return g;
+}
+
+/* ======================= Storage (IndexedDB) ======================= */
+// The database keeps its original name so entries from the earlier "DailyLog" build stay readable.
+let dbp;
+function db(){
+  if (!dbp) dbp = new Promise((res, rej) => {
+    const r = indexedDB.open("dailylog", 1);
+    r.onupgradeneeded = () => {
+      r.result.createObjectStore("entries", {keyPath:"id"});
+      r.result.createObjectStore("meta", {keyPath:"k"});
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return dbp;
+}
+async function idbAll(store){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const q = d.transaction(store).objectStore(store).getAll();
+    q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+  });
+}
+async function idbPut(store, val){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const t = d.transaction(store, "readwrite");
+    t.objectStore(store).put(val);
+    t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  });
+}
+async function idbPutMany(store, vals){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const t = d.transaction(store, "readwrite"), s = t.objectStore(store);
+    vals.forEach(v => s.put(v));
+    t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  });
+}
+const setMeta = (k, v) => idbPut("meta", {k, v});
+
+/* Bring entries from older builds up to the current shape (in memory; stored copies are untouched). */
+function normalize(e){
+  if (!e || e.type !== "stool") return e;
+  const o = {...e};
+  if (!Array.isArray(o.bristol_start)){
+    const n = o.bristol != null ? [Number(o.bristol)] : [];
+    o.bristol_start = n; o.bristol_end = n.slice();
+  }
+  if (!Array.isArray(o.bristol_end)) o.bristol_end = o.bristol_start.slice();
+  delete o.bristol;
+  if (o.urgency === undefined) o.urgency = null;
+  if (o.completion === undefined) o.completion = null;
+  o.tags = o.tags || [];
+  o.blood = !!o.blood; o.blood_kind = o.blood_kind || [];
+  o.mucus = !!o.mucus;
+  o.undigested = o.undigested || []; o.undigested_other = o.undigested_other || "";
+  o.context = o.context || []; o.context_other = o.context_other || "";
+  return o;
+}
+
+/* ======================= State ======================= */
+let ENTRIES = [];       // all entries incl. soft-deleted, kept in memory
+let CUSTOM = {};        // user-added foods: {category: [food, ...]}
+let LAST_EXPORT = null;
+let PERSISTED = null;
+let tab = "stool";
+let editing = null;
+let histFilter = "all";
+let histLimit = 100;
+let saving = false;
+
+const newStool = () => ({
+  ts:nowInput(), tsEdited:false, bmode:"same", bs:[], be:[], ease:"Normal", color:"brown",
+  urgency:"normal", completion:"complete", tags:[], blood:false, blood_kind:[], mucus:false,
+  undigested:[], undigested_other:"", context:[], context_other:"", duration:5, notes:""
+});
+const newMeal = () => ({ts:nowInput(), tsEdited:false, meal_type:guessMeal(), items:[], notes:""});
+let draftStool = newStool();
+let draftMeal = newMeal();
+
+const live = () => ENTRIES.filter(e => !e.deleted);
+const byTime = (a,b) => Date.parse(a.ts) - Date.parse(b.ts);
+const foodsFor = cat => {
+  const seen = new Set(), out = [];
+  [...(FOODS[cat] || []), ...(CUSTOM[cat] || [])].forEach(f => { const k = f.toLowerCase(); if (!seen.has(k)){ seen.add(k); out.push(f); } });
+  return out;
+};
+const isCustomFood = (cat, f) => (CUSTOM[cat] || []).some(x => x.toLowerCase() === f.toLowerCase()) && !(FOODS[cat] || []).some(x => x.toLowerCase() === f.toLowerCase());
+
+async function putEntry(e){
+  await idbPut("entries", e);
+  const i = ENTRIES.findIndex(x => x.id === e.id);
+  if (i >= 0) ENTRIES[i] = e; else ENTRIES.push(e);
+}
+
+function refreshPristine(){
+  if (editing) return;
+  const s = draftStool, m = draftMeal;
+  if (!s.tsEdited && !s.bs.length && !s.be.length && !s.notes) s.ts = nowInput();
+  if (!m.tsEdited && !m.items.length && !m.notes){ m.ts = nowInput(); m.meal_type = guessMeal(); }
+}
+
+const bristolLabel = (s, e) => "B" + s.join("/") + (arrEq(s, e) ? "" : "→" + e.join("/"));
+function dirtyCount(){ return ENTRIES.filter(e => !LAST_EXPORT || String(e.updated_at) > LAST_EXPORT).length; }
+function needsBackup(){
+  const n = dirtyCount();
+  return n > 0 && (!LAST_EXPORT || Date.now() - Date.parse(LAST_EXPORT) > 7*864e5);
+}
+
+/* ======================= Shell ======================= */
+const TABS = [
+  {k:"stool", icon:"📝", label:"Stool"},
+  {k:"meal", icon:"🍽️", label:"Meal"},
+  {k:"history", icon:"🕘", label:"History"},
+  {k:"data", icon:"💾", label:"Data"}
+];
+
+function render(){
+  const app = document.getElementById("app");
+  app.replaceChildren(tab === "stool" ? viewStool() : tab === "meal" ? viewMeal() : tab === "history" ? viewHistory() : viewData());
+  const nav = document.getElementById("tabs");
+  const badge = needsBackup();
+  nav.replaceChildren(...TABS.map(t => h("button",{class:t.k===tab?"on":"", type:"button", onclick:() => switchTab(t.k)},
+    h("i",{},t.icon), t.label, t.k === "data" && badge ? h("span",{class:"dotb", title:"Backup due"}) : null)));
+  const isEdit = !!editing && editing.type === tab;
+  document.getElementById("title").textContent = tab === "stool" ? (isEdit ? "Edit stool entry" : "Stool log")
+    : tab === "meal" ? (isEdit ? "Edit meal entry" : "Meal log") : tab === "history" ? "History" : "Data & backup";
+  const bar = document.getElementById("bar"), hasBar = tab === "stool" || tab === "meal";
+  bar.hidden = !hasBar; document.body.classList.toggle("has-bar", hasBar);
+  bar.replaceChildren(hasBar ? h("button",{class:"btn primary", type:"button", onclick: tab === "stool" ? saveStool : saveMeal},
+    isEdit ? "Save changes" : tab === "stool" ? "Save stool entry" : "Save meal entry") : "");
+  setHdr();
+}
+function setHdr(){
+  const hd = document.querySelector("header");
+  if (hd) document.documentElement.style.setProperty("--hdr-h", hd.offsetHeight + "px");
+}
+function switchTab(k){
+  if (k !== tab){ tab = k; if (k === "stool" || k === "meal") refreshPristine(); }
+  render(); window.scrollTo(0,0);
+}
+function editBanner(){
+  if (!editing) return null;
+  return h("div",{class:"banner"},
+    h("span",{}, "Editing entry from " + editing.ts.slice(0,16).replace("T"," ")),
+    h("button",{class:"btn small", type:"button", onclick:() => { editing = null; draftStool = newStool(); draftMeal = newMeal(); render(); }}, "Cancel"));
+}
+
+function whenCard(d){
+  const dt = h("input",{type:"datetime-local", value:d.ts, oninput:e => { d.ts = e.target.value; d.tsEdited = true; }});
+  const back = mins => () => { d.ts = localISO(new Date(Date.now() - mins*60000)).slice(0,16); d.tsEdited = mins !== 0; dt.value = d.ts; };
+  const quick = (label, mins) => h("button",{class:"chip small", type:"button", onclick:back(mins)}, label);
+  return card("When", dt, h("div",{class:"chips mt"}, quick("Now",0), quick("−5m",5), quick("−30m",30), quick("−1h",60)));
+}
+function notesCard(d){
+  const ta = h("textarea",{rows:"4", placeholder:"Notes / 备注 (English or 中文)", oninput:e => d.notes = e.target.value});
+  ta.value = d.notes;
+  return card("Notes / 备注", ta);
+}
+
+/* ---------- Stool ---------- */
+function bristolCard(d){
+  const sum = h("span",{class:"bsum"});
+  const wrap = h("div");
+  const updSum = () => {
+    const s = uniqSorted(d.bs), e = d.bmode === "same" ? s : uniqSorted(d.be);
+    sum.textContent = s.length ? bristolLabel(s, e.length ? e : s) + (d.bmode === "change" && !e.length ? "→?" : "") : "";
+  };
+  const group = (label, key) => {
+    const grid = h("div",{class:"bgrid"}), cap = h("div",{class:"bcap"});
+    const paint = () => {
+      const a = d[key];
+      [...grid.children].forEach((b,i) => b.classList.toggle("on", a.includes(i+1)));
+      cap.textContent = a.length ? uniqSorted(a).map(n => `${n} · ${BRISTOL[n-1].d}`).join("   +   ") : "Tap a number (up to 2 if it was mixed)";
+      updSum();
+    };
+    BRISTOL.forEach(b => grid.append(h("button",{type:"button", "aria-label":"Type " + b.n, onclick:() => {
+      const a = d[key], i = a.indexOf(b.n);
+      if (i >= 0) a.splice(i,1); else { a.push(b.n); if (a.length > 2) a.shift(); }
+      paint();
+    }}, String(b.n))));
+    paint();
+    return h("div",{class:"bgroup"}, label ? h("div",{class:"label"}, label) : null, grid,
+      h("div",{class:"bscale"}, h("span",{},"hard lumps"), h("span",{},"liquid")), cap);
+  };
+  const rebuild = () => {
+    wrap.replaceChildren(...(d.bmode === "same" ? [group("", "bs")] : [group("Started as", "bs"), group("Ended as", "be")]));
+    updSum();
+  };
+  const mode = chips([{v:"same",l:"One type"},{v:"change",l:"Start → End"}], () => d.bmode, v => {
+    if (v === "same" && !d.bs.length && d.be.length) d.bs = d.be.slice();
+    d.bmode = v;
+  }, {kind:"seg", onChange:rebuild});
+  rebuild();
+  return card(null,
+    h("h2",{}, h("span",{}, "Stool type · Bristol"), sum),
+    h("div",{class:"f"}, mode), wrap,
+    field("Quick tags", chips(TAGS, () => d.tags, a => d.tags = a, {multi:true, cls:"wrap"})));
+}
+
+function extrasCard(d, updWarn){
+  const root = card("Notable extras");
+  function xrow(title, sub, get, set, body){
+    const row = h("div",{class:"xrow"}), box = h("span",{class:"xbox"});
+    const bodyEl = body ? h("div",{class:"xbody"}, body) : null;
+    const head = h("button",{type:"button", class:"xhead", onclick:() => { set(!get()); sync(); updWarn(); }},
+      box, h("span",{}, title, sub ? h("small",{}, sub) : null));
+    function sync(){
+      const on = !!get();
+      row.classList.toggle("on", on); box.textContent = on ? "✓" : ""; head.setAttribute("aria-pressed", String(on));
+      if (bodyEl) bodyEl.hidden = !on;
+    }
+    row.append(head); if (bodyEl) row.append(bodyEl); sync();
+    return row;
+  }
+  // visible blood
+  const kinds = chips(BLOOD_KINDS, () => d.blood_kind, a => d.blood_kind = a, {multi:true, onChange:updWarn});
+  root.append(xrow("Visible blood", null, () => d.blood, v => { d.blood = v; if (!v){ d.blood_kind = []; kinds.repaint(); } }, kinds));
+  // mucus
+  root.append(xrow("Visible mucus", "clear, jelly-like", () => d.mucus, v => d.mucus = v, null));
+  // undigested food
+  const otherIn = h("input",{type:"text", placeholder:"Which food? / 什么食物", oninput:e => d.undigested_other = e.target.value});
+  otherIn.value = d.undigested_other;
+  const otherRow = h("div",{class:"row"}, otherIn);
+  const und = chips(UNDIGESTED, () => d.undigested, a => d.undigested = a, {multi:true, onChange:() => { otherRow.hidden = !d.undigested.includes("other"); }});
+  otherRow.hidden = !d.undigested.includes("other");
+  root.append(xrow("Undigested food", null, () => d.undigested.length > 0 || d._undOpen,
+    v => { d._undOpen = v; if (!v){ d.undigested = []; d.undigested_other = ""; otherIn.value = ""; und.repaint(); otherRow.hidden = true; } },
+    h("div",{}, und, otherRow)));
+  return root;
+}
+
+function viewStool(){
+  const d = draftStool, root = h("div");
+  if (editing && editing.type === "stool") root.append(editBanner());
+  root.append(whenCard(d));
+  root.append(bristolCard(d));
+
+  const dur = h("input",{type:"number", inputmode:"numeric", min:"0", value:String(d.duration),
+    oninput:e => d.duration = Math.max(0, parseInt(e.target.value || "0", 10) || 0)});
+  const setDur = n => { d.duration = Math.max(0, n); dur.value = String(d.duration); };
+  root.append(card("How it went",
+    field("Ease of passing", chips(EASE, () => d.ease, v => d.ease = v, {kind:"seg", cls:"dense"})),
+    field("Urgency", chips(URGENCY, () => d.urgency, v => d.urgency = v, {kind:"seg"})),
+    field("Completion", chips(COMPLETION, () => d.completion, v => d.completion = v, {kind:"seg"})),
+    field("Duration",
+      h("div",{class:"stepper"},
+        h("button",{class:"btn", type:"button", "aria-label":"minus one minute", onclick:() => setDur(d.duration - 1)}, "−"),
+        dur,
+        h("button",{class:"btn", type:"button", "aria-label":"plus one minute", onclick:() => setDur(d.duration + 1)}, "+"),
+        h("span",{class:"unit"}, "min")),
+      h("div",{class:"chips mt"}, DURATION_PRESETS.map(n => h("button",{class:"chip small", type:"button", onclick:() => setDur(n)}, n + " min"))))));
+
+  const warn = h("div",{class:"warn", hidden:true});
+  const updWarn = () => {
+    const msgs = [];
+    if (d.color === "red" || d.blood) msgs.push(MSG_RED);
+    if (d.color === "black" || d.blood_kind.includes("tarry")) msgs.push(MSG_BLACK);
+    warn.replaceChildren(h("b",{}, "⚠️ Heads up"), ...msgs.map(m => h("p",{}, m)));
+    warn.hidden = !msgs.length;
+  };
+  root.append(card("Color", chips(COLORS.map(c => ({v:c.k, l:c.k, dot:c.c})), () => d.color, v => d.color = v, {kind:"grid", onChange:updWarn})));
+  root.append(extrasCard(d, updWarn));
+  updWarn(); root.append(warn);
+
+  const ctxOther = h("input",{type:"text", placeholder:"Describe / 说明", oninput:e => d.context_other = e.target.value});
+  ctxOther.value = d.context_other;
+  const ctxRow = h("div",{class:"row mt"}, ctxOther);
+  ctxRow.hidden = !d.context.includes("other");
+  root.append(card("Brief context",
+    chips(CONTEXTS, () => d.context, a => d.context = a, {multi:true, onChange:() => { ctxRow.hidden = !d.context.includes("other"); }}), ctxRow));
+
+  root.append(notesCard(d));
+  if (editing && editing.type === "stool") root.append(h("button",{class:"btn danger", type:"button", onclick:deleteEditing}, "Delete this entry"));
+  return root;
+}
+
+async function saveStool(){
+  if (saving) return;
+  const d = draftStool;
+  const bs = uniqSorted(d.bs), be = d.bmode === "same" ? bs : uniqSorted(d.be);
+  if (!bs.length){ toast("Pick a stool type first"); return; }
+  if (!be.length){ toast("Pick the ending type too"); return; }
+  saving = true;
+  try {
+    const base = editing && editing.type === "stool" ? editing : null, now = new Date().toISOString();
+    const hasOtherU = d.undigested.includes("other"), hasOtherC = d.context.includes("other");
+    await putEntry({
+      id: base ? base.id : uuid(), type:"stool", ts: tsFromInput(d.ts, base && base.ts),
+      bristol_start:bs, bristol_end:be, ease:d.ease, color:d.color,
+      urgency:d.urgency, completion:d.completion, tags:[...d.tags],
+      blood:d.blood, blood_kind:d.blood ? [...d.blood_kind] : [], mucus:d.mucus,
+      undigested:[...d.undigested], undigested_other: hasOtherU ? d.undigested_other.trim() : "",
+      context:[...d.context], context_other: hasOtherC ? d.context_other.trim() : "",
+      duration_min:d.duration, notes:d.notes.trim(),
+      created_at: base ? base.created_at : now, updated_at: now, deleted:false
+    });
+    const wasEditing = !!base;
+    editing = null; draftStool = newStool(); toast(wasEditing ? "Changes saved" : "Saved ✓");
+    if (wasEditing) tab = "history";
+    render(); window.scrollTo(0,0);
+  } catch (err){ toast("Could not save, try again"); }
+  finally { saving = false; }
+}
+
+/* ---------- Meal ---------- */
+function recentFoods(n){
+  const seen = new Set(), out = [];
+  const meals = live().filter(e => e.type === "meal").sort((a,b) => byTime(b,a));
+  for (const m of meals) for (const it of m.items){
+    const k = it.category + "|" + it.food;
+    if (!seen.has(k)){ seen.add(k); out.push(it); if (out.length >= n) return out; }
+  }
+  return out;
+}
+
+function viewMeal(){
+  const d = draftMeal, root = h("div");
+  if (editing && editing.type === "meal") root.append(editBanner());
+  root.append(whenCard(d));
+  root.append(card("Meal type", chips(MEALS, () => d.meal_type, v => d.meal_type = v)));
+
+  const chipEls = new Map(), sections = [], secByCat = {};
+  const key = (c,f) => c + "|" + f;
+  const isSel = (c,f) => d.items.some(i => i.category === c && i.food === f);
+  const summary = h("div",{class:"summary"});
+
+  function updSummary(){
+    summary.replaceChildren(
+      h("div",{class:"label"}, `Selected (${d.items.length})`),
+      d.items.length
+        ? h("div",{class:"chips"}, d.items.map(it => h("button",{type:"button", class:"chip small on", onclick:() => toggle(it.category, it.food)}, it.food + " ✕")))
+        : h("span",{class:"muted"}, "Tap foods below"));
+    sections.forEach(s => {
+      const n = d.items.filter(i => i.category === s.cat).length;
+      s.badge.textContent = n; s.badge.hidden = !n;
+    });
+  }
+  function toggle(c, f){
+    const i = d.items.findIndex(x => x.category === c && x.food === f);
+    if (i >= 0) d.items.splice(i,1); else d.items.push({category:c, food:f});
+    (chipEls.get(key(c,f)) || []).forEach(el => el.classList.toggle("on", isSel(c,f)));
+    updSummary();
+  }
+  function mkChip(c, f){
+    const b = h("button",{type:"button", class:"chip" + (isCustomFood(c,f) ? " custom" : "") + (isSel(c,f) ? " on" : ""), onclick:() => toggle(c,f)}, f);
+    const k = key(c,f); if (!chipEls.has(k)) chipEls.set(k, []); chipEls.get(k).push(b);
+    return b;
+  }
+  // add a food (typed by the user) to a category, select it and remember it
+  function addToCat(cat, raw){
+    const f = String(raw || "").trim().replace(/\s+/g," ").slice(0,40);
+    if (!f) return false;
+    const have = foodsFor(cat).concat(d.items.filter(i => i.category === cat).map(i => i.food));
+    let name = have.find(x => x.toLowerCase() === f.toLowerCase()), isNew = false;
+    if (!name){ name = f; isNew = true; (CUSTOM[cat] = CUSTOM[cat] || []).push(name); }
+    const sec = secByCat[cat];
+    if (!chipEls.has(key(cat,name))){ const c = mkChip(cat,name); sec.chips.push(c); sec.body.append(c); }
+    if (!isSel(cat,name)) toggle(cat,name);
+    sec.det.open = true;
+    if (isNew) setMeta("customFoodsByCat", CUSTOM).catch(() => toast("Could not save the new food"));
+    return true;
+  }
+  function mkSection(cat){
+    const badge = h("span",{class:"badge", hidden:true});
+    const extra = d.items.filter(i => i.category === cat).map(i => i.food).filter(f => !foodsFor(cat).includes(f));
+    const chipList = [...foodsFor(cat), ...extra].map(f => mkChip(cat, f));
+    const body = h("div",{class:"chips"}, chipList);
+    const input = h("input",{type:"text", placeholder: cat === "Other" ? "New food / 其他食物" : "Add to " + cat + " / 添加", enterkeyhint:"done", maxlength:"40",
+      onkeydown:e => { if (e.key === "Enter"){ e.preventDefault(); if (addToCat(cat, input.value)) input.value = ""; } }});
+    const addBtn = h("button",{class:"btn small", type:"button", onclick:() => { if (addToCat(cat, input.value)) input.value = ""; }}, "Add");
+    const det = h("details",{}, h("summary",{}, h("span",{}, cat, badge)), body, h("div",{class:"row addrow"}, input, addBtn));
+    const sec = {cat, badge, det, body, chips:chipList};
+    sections.push(sec); secByCat[cat] = sec;
+    return det;
+  }
+
+  root.append(summary);
+  const rec = recentFoods(10);
+  const recCard = rec.length ? card("Recent", h("div",{class:"chips"}, rec.map(it => mkChip(it.category, it.food)))) : null;
+  if (recCard) root.append(recCard);
+
+  // search + quick add when nothing matches
+  const quickSel = h("select",{}, CATS.map(c => h("option",{value:c}, c)));
+  quickSel.value = "Other";
+  const quickLabel = h("div",{class:"muted", style:"margin-bottom:8px"});
+  let search;
+  const quick = card(null, quickLabel, h("div",{class:"row"}, quickSel,
+    h("button",{class:"btn small", type:"button", onclick:() => { if (addToCat(quickSel.value, search.value)){ search.value = ""; search.dispatchEvent(new Event("input")); } }}, "Add & select")));
+  quick.hidden = true;
+  search = h("input",{type:"search", placeholder:"Search foods…", oninput:e => {
+    const q = e.target.value.trim().toLowerCase();
+    let total = 0;
+    sections.forEach(s => {
+      let any = false;
+      s.chips.forEach(ch => { const m = !q || ch.textContent.toLowerCase().includes(q); ch.hidden = !m; if (m){ any = true; total++; } });
+      s.det.hidden = !!q && !any;
+      if (q && any) s.det.open = true;
+    });
+    quick.hidden = !(q && total === 0);
+    if (!quick.hidden) quickLabel.textContent = `No match. Add “${e.target.value.trim()}” as a new food in:`;
+  }});
+  root.append(h("div",{class:"f"}, search), quick);
+
+  CATS.forEach(cat => root.append(mkSection(cat)));
+  root.append(h("div",{style:"height:6px"}));
+  updSummary();
+  root.append(notesCard(d));
+  if (editing && editing.type === "meal") root.append(h("button",{class:"btn danger", type:"button", onclick:deleteEditing}, "Delete this entry"));
+  return root;
+}
+
+async function saveMeal(){
+  if (saving) return;
+  const d = draftMeal;
+  if (!d.items.length && !d.notes.trim()){ toast("Pick at least one food or add a note"); return; }
+  saving = true;
+  try {
+    const base = editing && editing.type === "meal" ? editing : null, now = new Date().toISOString();
+    await putEntry({
+      id: base ? base.id : uuid(), type:"meal", ts: tsFromInput(d.ts, base && base.ts),
+      meal_type:d.meal_type, items:d.items.map(i => ({category:i.category, food:i.food})), notes:d.notes.trim(),
+      created_at: base ? base.created_at : now, updated_at: now, deleted:false
+    });
+    const wasEditing = !!base;
+    editing = null; draftMeal = newMeal(); toast(wasEditing ? "Changes saved" : "Saved ✓");
+    if (wasEditing) tab = "history";
+    render(); window.scrollTo(0,0);
+  } catch (err){ toast("Could not save, try again"); }
+  finally { saving = false; }
+}
+async function deleteEditing(){
+  if (!editing || !confirm("Delete this entry?")) return;
+  await putEntry({...editing, deleted:true, updated_at:new Date().toISOString()});
+  editing = null; draftStool = newStool(); draftMeal = newMeal(); tab = "history"; toast("Deleted"); render();
+}
+
+/* ---------- History ---------- */
+function stoolLine(e){
+  return [bristolLabel(e.bristol_start, e.bristol_end), e.ease, e.color, e.duration_min != null ? e.duration_min + " min" : null].filter(Boolean).join(" · ");
+}
+function stoolFlags(e){
+  const f = [];
+  if (e.urgency === "urgent") f.push({t:"Urgent"});
+  if (e.completion === "incomplete") f.push({t:"Incomplete"});
+  if (e.blood) f.push({t:"Blood" + (e.blood_kind.length ? ": " + e.blood_kind.map(k => labelOf(BLOOD_KINDS,k).toLowerCase()).join(", ") : ""), warn:true});
+  else if (e.color === "red" || e.color === "black") f.push({t:e.color, warn:true});
+  if (e.mucus) f.push({t:"Mucus"});
+  if (e.undigested.length) f.push({t:"Undigested: " + e.undigested.map(k => k === "other" ? (e.undigested_other || "other") : labelOf(UNDIGESTED,k).toLowerCase()).join(", ")});
+  e.tags.forEach(k => f.push({t:labelOf(TAGS,k)}));
+  e.context.forEach(k => f.push({t:k === "other" ? (e.context_other || "Other") : labelOf(CONTEXTS,k)}));
+  return f;
+}
+function startEdit(e){
+  editing = e;
+  if (e.type === "stool"){
+    draftStool = {ts:e.ts.slice(0,16), tsEdited:true, bmode: arrEq(e.bristol_start, e.bristol_end) ? "same" : "change",
+      bs:e.bristol_start.slice(), be:e.bristol_end.slice(), ease:e.ease || "Normal", color:e.color || "brown",
+      urgency:e.urgency, completion:e.completion, tags:e.tags.slice(), blood:!!e.blood, blood_kind:e.blood_kind.slice(), mucus:!!e.mucus,
+      undigested:e.undigested.slice(), undigested_other:e.undigested_other || "", context:e.context.slice(), context_other:e.context_other || "",
+      duration:e.duration_min || 0, notes:e.notes || ""};
+    tab = "stool";
+  } else {
+    draftMeal = {ts:e.ts.slice(0,16), tsEdited:true, meal_type:e.meal_type, items:e.items.map(i => ({...i})), notes:e.notes||""};
+    tab = "meal";
+  }
+  render(); window.scrollTo(0,0);
+}
+function viewHistory(){
+  const root = h("div");
+  root.append(h("div",{class:"f"}, chips([{v:"all",l:"All"},{v:"stool",l:"Stool"},{v:"meal",l:"Meals"}], () => histFilter, v => histFilter = v,
+    {onChange:() => { histLimit = 100; render(); }})));
+  const rows = live().filter(e => histFilter === "all" || e.type === histFilter).sort((a,b) => byTime(b,a));
+  if (!rows.length) root.append(h("p",{class:"muted"}, "No entries yet."));
+  const shown = rows.slice(0, histLimit), days = new Map();
+  shown.forEach(e => { const k = e.ts.slice(0,10); if (!days.has(k)) days.set(k, []); days.get(k).push(e); });
+  days.forEach((list, day) => {
+    const ns = list.filter(e => e.type === "stool").length, nm = list.length - ns;
+    root.append(h("div",{class:"day"},
+      h("span",{}, new Date(day + "T12:00:00").toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric", year:"numeric"})),
+      h("span",{}, [ns ? ns + " stool" : "", nm ? nm + " meal" + (nm > 1 ? "s" : "") : ""].filter(Boolean).join(" · "))));
+    list.forEach(e => {
+      const flags = e.type === "stool" ? stoolFlags(e) : [];
+      root.append(h("button",{class:"item", type:"button", onclick:() => startEdit(e)},
+        h("div",{class:"top"}, h("span",{class:"time"}, e.ts.slice(11,16)), h("span",{class:"tag" + (e.type === "stool" ? " stool" : "")}, e.type === "stool" ? "Stool" : e.meal_type)),
+        h("div",{}, e.type === "stool" ? stoolLine(e) : (e.items.map(i => i.food).join(", ") || "—")),
+        flags.length ? h("div",{class:"flags"}, flags.map(x => h("span",{class:"fl" + (x.warn ? " warn" : "")}, x.t))) : null,
+        e.notes ? h("div",{class:"note"}, e.notes) : null));
+    });
+  });
+  if (rows.length > histLimit) root.append(h("button",{class:"btn", style:"width:100%", type:"button", onclick:() => { histLimit += 100; render(); }}, "Show more"));
+  return root;
+}
+
+/* ---------- Data / export / import ---------- */
+const csvCell = v => { const s = v == null ? "" : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+const toCSV = (cols, rows) => "﻿" + [cols.join(","), ...rows.map(r => cols.map(c => csvCell(r[c])).join(","))].join("\r\n") + "\r\n";
+const stamp = () => { const d = new Date(); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`; };
+
+function buildBackup(){
+  return JSON.stringify({app:"gutlog", version:2, exported_at:new Date().toISOString(), entries:[...ENTRIES].sort(byTime)}, null, 1);
+}
+function buildCSVs(){
+  const all = live().sort(byTime);
+  const yn = v => v ? "yes" : "no";
+  const stool = all.filter(e => e.type === "stool").map(e => ({
+    id:e.id, datetime:e.ts.slice(0,16).replace("T"," "),
+    bristol_start:e.bristol_start.join("|"), bristol_end:e.bristol_end.join("|"), bristol:bristolLabel(e.bristol_start, e.bristol_end),
+    ease:e.ease, color:e.color, urgency:e.urgency || "", completion:e.completion || "",
+    tags:e.tags.map(k => labelOf(TAGS,k)).join("; "),
+    visible_blood:yn(e.blood), blood_kind:e.blood_kind.map(k => labelOf(BLOOD_KINDS,k)).join("; "), mucus:yn(e.mucus),
+    undigested:e.undigested.map(k => k === "other" ? "other" + (e.undigested_other ? ": " + e.undigested_other : "") : labelOf(UNDIGESTED,k)).join("; "),
+    context:e.context.map(k => k === "other" ? "other" + (e.context_other ? ": " + e.context_other : "") : labelOf(CONTEXTS,k)).join("; "),
+    duration_min:e.duration_min, notes:e.notes}));
+  const meals = all.filter(e => e.type === "meal").map(e => ({id:e.id, datetime:e.ts.slice(0,16).replace("T"," "), meal_type:e.meal_type, foods:e.items.map(i => i.food).join("; "), categories:[...new Set(e.items.map(i => i.category))].join("; "), notes:e.notes}));
+  return [
+    {name:`gutlog-stool-${stamp()}.csv`, type:"text/csv", text:toCSV(["id","datetime","bristol_start","bristol_end","bristol","ease","color","urgency","completion","tags","visible_blood","blood_kind","mucus","undigested","context","duration_min","notes"], stool)},
+    {name:`gutlog-meals-${stamp()}.csv`, type:"text/csv", text:toCSV(["id","datetime","meal_type","foods","categories","notes"], meals)}
+  ];
+}
+async function shareFiles(defs){
+  const files = defs.map(f => new File([f.text], f.name, {type:f.type}));
+  if (navigator.canShare && navigator.canShare({files})){
+    try { await navigator.share({files}); return true; }
+    catch (err){ if (err && err.name === "AbortError") return false; }
+  }
+  for (const f of files){
+    const a = h("a",{href:URL.createObjectURL(f), download:f.name});
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+  return true;
+}
+async function markExported(){
+  LAST_EXPORT = new Date().toISOString(); await setMeta("lastExport", LAST_EXPORT); render();
+}
+function parseImport(text){
+  text = text.replace(/^﻿/, "").trim();
+  try {
+    const j = JSON.parse(text);
+    if (Array.isArray(j)) return j;
+    if (j && Array.isArray(j.entries)) return j.entries;
+  } catch (_) {}
+  return text.split(/\r?\n/).filter(Boolean).map(l => JSON.parse(l));
+}
+async function importFile(file){
+  try {
+    const rows = parseImport(await file.text());
+    const take = [];
+    for (const r0 of rows){
+      if (!r0 || !r0.id || (r0.type !== "stool" && r0.type !== "meal") || !r0.ts) continue;
+      const r = normalize(r0);
+      const cur = ENTRIES.find(e => e.id === r.id);
+      if (!cur || String(r.updated_at || "") > String(cur.updated_at || "")) take.push(r);
+    }
+    await idbPutMany("entries", take);
+    take.forEach(r => { const i = ENTRIES.findIndex(e => e.id === r.id); if (i >= 0) ENTRIES[i] = r; else ENTRIES.push(r); });
+    toast(`Imported ${take.length} of ${rows.length} entries`); render();
+  } catch (err){ toast("Import failed: not a valid backup file"); }
+}
+function viewData(){
+  const root = h("div");
+  const n = live(), stools = n.filter(e => e.type === "stool").length, meals = n.length - stools, dirty = dirtyCount();
+  root.append(card("Your data",
+    h("div",{class:"kv"}, h("span",{}, "Stool entries"), h("b",{}, stools)),
+    h("div",{class:"kv"}, h("span",{}, "Meal entries"), h("b",{}, meals)),
+    h("div",{class:"kv"}, h("span",{}, "Last export"), h("b",{}, LAST_EXPORT ? new Date(LAST_EXPORT).toLocaleString() : "never")),
+    h("div",{class:"kv"}, h("span",{}, "Changes not exported"), h("b",{}, dirty)),
+    h("div",{class:"kv"}, h("span",{}, "Storage protected"), h("b",{}, PERSISTED === true ? "yes" : PERSISTED === false ? "not guaranteed" : "—")),
+    h("p",{class:"muted"}, "Data lives only on this phone. Export weekly to iCloud Drive or AirDrop.")));
+
+  root.append(card("Export",
+    h("button",{class:"btn primary", type:"button", onclick:async () => {
+      if (await shareFiles([{name:`gutlog-backup-${stamp()}.json`, type:"application/json", text:buildBackup()}])) await markExported();
+    }}, "Backup file (.json)"),
+    h("button",{class:"btn block", type:"button", onclick:async () => { await shareFiles(buildCSVs()); }}, "CSV for Excel (2 files)")));
+
+  const picker = h("input",{type:"file", accept:".json,.jsonl,.txt,application/json,text/plain", hidden:true, onchange:e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ""; }});
+  root.append(card("Import / restore",
+    h("p",{class:"muted", style:"margin:0 0 8px"}, "Merges a backup file (from GutLog or the earlier DailyLog) into this phone. Newer edits win; nothing is overwritten by older copies."),
+    picker, h("button",{class:"btn block", style:"margin-top:0", type:"button", onclick:() => picker.click()}, "Choose backup file")));
+
+  let sz = 22; try { sz = parseFloat(localStorage.getItem("fs") || "22") || 22; } catch (_) {}
+  const setSz = v => { v = Math.min(30, Math.max(16, v)); try { localStorage.setItem("fs", String(v)); } catch (_) {} document.documentElement.style.fontSize = v + "px"; render(); };
+  root.append(card("Text size",
+    h("div",{class:"row"},
+      h("button",{class:"btn", style:"flex:1", type:"button", onclick:() => setSz(sz - 2)}, "A−"),
+      h("button",{class:"btn", style:"flex:1", type:"button", onclick:() => setSz(sz + 2)}, "A+"))));
+
+  const saved = CATS.filter(c => (CUSTOM[c] || []).length);
+  if (saved.length){
+    root.append(card("Foods you added",
+      saved.map(c => h("div",{class:"f"}, h("div",{class:"label"}, c),
+        h("div",{class:"chips"}, CUSTOM[c].map(f => h("button",{class:"chip small custom", type:"button", "aria-label":"Remove " + f, onclick:async () => {
+          if (!confirm(`Remove “${f}” from the ${c} list? Past entries keep it.`)) return;
+          CUSTOM[c] = CUSTOM[c].filter(x => x !== f); await setMeta("customFoodsByCat", CUSTOM); render();
+        }}, f + " ✕"))))),
+      h("p",{class:"muted"}, "Tap a food to remove it from the pick list.")));
+  }
+  return root;
+}
+
+/* ======================= Boot ======================= */
+async function init(){
+  try { const fs = localStorage.getItem("fs"); if (fs) document.documentElement.style.fontSize = fs + "px"; } catch (_) {}
+  try {
+    ENTRIES = (await idbAll("entries")).map(normalize);
+    const metas = await idbAll("meta"), get = k => (metas.find(m => m.k === k) || {}).v;
+    CUSTOM = get("customFoodsByCat") || {};
+    const legacy = get("customFoods");              // earlier build kept one flat list ("Other")
+    if (Array.isArray(legacy) && legacy.length){
+      CUSTOM.Other = [...new Set([...(CUSTOM.Other || []), ...legacy])];
+      await setMeta("customFoodsByCat", CUSTOM); await setMeta("customFoods", []);
+    }
+    LAST_EXPORT = get("lastExport") || null;
+  } catch (err){
+    document.getElementById("app").replaceChildren(h("div",{class:"warn"}, "Storage is not available in this browser mode, so entries can't be saved. Open the app from the Home Screen icon, outside Private Browsing."));
+    return;
+  }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(g => { PERSISTED = g; if (tab === "data") render(); }).catch(() => {});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && (tab === "stool" || tab === "meal")){ refreshPristine(); render(); } });
+  window.addEventListener("resize", setHdr);
+  render();
+}
+init();
+</script>
+</body>
+</html>
